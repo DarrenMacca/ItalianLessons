@@ -3310,10 +3310,11 @@ const DISRUPTOR_WORDS = {
 
 function generateConversationPrompt(level) {
     const pool = CEFR_CONVERSATION_PROMPTS[level];
+    if (!pool || !pool.length) return null;
+    
     const item = pool[Math.floor(Math.random() * pool.length)];
-
     return {
-        prompt_it: item.prompt_it, // Updated internal model reference key from prompt_es to prompt_it
+        prompt_it: item.prompt_it,
         prompt_en: item.prompt_en,
         expected: item.expected_responses
     };
@@ -3329,8 +3330,9 @@ function renderConversationTab() {
     }
 
     const convo = generateConversationPrompt(level);
+    if (!convo) return;
 
-    const presetButtons = convo.expected.map((exp, idx) => `
+    const presetButtons = convo.expected.map(exp => `
         <button class="pill preset-response" data-response="${exp.it}">
             ${exp.it}
         </button>
@@ -3339,41 +3341,103 @@ function renderConversationTab() {
     container.innerHTML = `
         <div class="glass-panel convo-card">
             <h2>Conversation — Level ${level}</h2>
-            <p>Respond naturally using Italian.</p>
+            <p>Respond naturally by typing, using presets, or tapping word pills below.</p>
 
             <div class="convo-prompt">
                 <strong>Italian:</strong> ${convo.prompt_it}<br>
                 <strong>English:</strong> ${convo.prompt_en}
             </div>
 
-            <div class="preset-box">
+            <div class="preset-box" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                 ${presetButtons}
             </div>
 
-            <textarea id="convo-input" class="convo-input"
-                placeholder="Type your Italian response here..."></textarea>
+            <!-- Dynamic Vocab Pill Box Anchor Panel -->
+            <div id="convo-pill-box" class="sb-grid" style="margin-bottom: 15px; max-height: 120px; overflow-y: auto; padding: 4px;"></div>
 
-            <div class="convo-controls">
+            <textarea id="convo-input" class="input-field" style="width: 100%; min-height: 80px; resize: vertical;"
+                placeholder="Type or build your Italian response here..."></textarea>
+
+            <div class="sb-controls" style="margin-top: 15px;">
+                <button id="convo-clear" class="pill" style="background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4);">Clear</button>
                 <button id="convo-submit" class="pill">Submit</button>
-                <button id="convo-next" class="pill">Next</button>
+                <button id="convo-next" class="pill" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8;">Next</button>
             </div>
 
-            <div id="convo-feedback"></div>
+            <div id="convo-feedback" style="margin-top: 15px;"></div>
         </div>
     `;
 
+    // Initialize secondary dynamic UI attachments
+    renderConversationPills(level);
     setupConversationEvents(convo);
 }
 
-function scoreConversationResponse(userText, expectedList) {
-    const normalizedUser = userText.toLowerCase().trim();
-    const wordsUser = normalizedUser.split(" ");
+/* ============================================================
+   RENDER VOCAB + DISRUPTOR PILLS
+   ============================================================ */
 
-    let bestScore = 0;
-    let bestMatch = null;
+function renderConversationPills(level) {
+    const box = document.getElementById("convo-pill-box");
+    if (!box) return;
+
+    let vocab = [];
+    const levels = ["A1", "A2", "B1", "B2"];
+    const currentIndex = levels.indexOf(level);
+
+    for (let i = 0; i <= currentIndex; i++) {
+        const lvl = levels[i];
+        if (CEFR_LEVELS[lvl]) {
+            vocab = vocab.concat(CEFR_LEVELS[lvl]);
+        }
+    }
+
+    const disruptors = DISRUPTOR_WORDS[level] ? DISRUPTOR_WORDS[level].map(d => ({ italian: d })) : [];
+    const finalPills = vocab.concat(disruptors);
+
+    // Deduplicate array strings to keep layout clean
+    const seen = new Set();
+    const uniquePills = finalPills.filter(w => {
+        if (!w.italian) return false;
+        const lower = w.italian.toLowerCase().trim();
+        if (seen.has(lower)) return false;
+        seen.add(lower);
+        return true;
+    });
+
+    box.innerHTML = uniquePills.map(w => `
+        <button class="pill convo-pill" style="padding: 6px 12px; font-size: 13px;" data-word="${w.italian}">
+            ${w.italian}
+        </button>
+    `).join("");
+
+    const inputField = document.getElementById("convo-input");
+    box.querySelectorAll(".convo-pill").forEach(p => {
+        p.addEventListener("click", () => {
+            const currentVal = inputField.value.trim();
+            inputField.value = currentVal ? `${currentVal} ${p.dataset.word}` : p.dataset.word;
+            // Fire layout standard input triggers manually
+            inputField.dispatchEvent(new Event('input'));
+        });
+    });
+}
+
+/* ============================================================
+   SAFE SCORING ENGINE
+   ============================================================ */
+
+function scoreConversationResponse(userText, expectedList) {
+    const normalizedUser = userText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").trim();
+    const wordsUser = normalizedUser.split(/\s+/);
+
+    let bestScore = -1;
+    // CRITICAL FIX: Default to the first entry to prevent null-pointer crashes if zero words match
+    let bestMatch = expectedList[0] || { it: "", en: "" }; 
 
     expectedList.forEach(exp => {
-        const wordsExp = exp.it.toLowerCase().split(" "); // Updated mapping target key from .es to .it
+        const normalizedExp = exp.it.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").trim();
+        const wordsExp = normalizedExp.split(/\s+/);
+
         const matches = wordsUser.filter(w => wordsExp.includes(w)).length;
         const score = Math.round((matches / wordsExp.length) * 100);
 
@@ -3383,45 +3447,58 @@ function scoreConversationResponse(userText, expectedList) {
         }
     });
 
-    return { score: bestScore, match: bestMatch };
+    return { score: Math.max(0, bestScore), match: bestMatch };
 }
+
+/* ============================================================
+   EVENT WIRE OVERLAYS
+   ============================================================ */
 
 function setupConversationEvents(convo) {
     const submitBtn = document.getElementById("convo-submit");
     const nextBtn = document.getElementById("convo-next");
+    const clearBtn = document.getElementById("convo-clear");
     const feedback = document.getElementById("convo-feedback");
+    const inputField = document.getElementById("convo-input");
 
-    // Attach listeners AFTER DOM is fully rendered
-    setTimeout(() => {
-        document.querySelectorAll(".preset-response").forEach(btn => {
-            btn.addEventListener("click", () => {
-                document.getElementById("convo-input").value = btn.dataset.response;
-            });
+    // Connect preset quick-response selectors
+    document.querySelectorAll(".preset-response").forEach(btn => {
+        btn.addEventListener("click", () => {
+            inputField.value = btn.dataset.response;
         });
-    }, 0);
+    });
+
+    // Clear input utility handler
+    clearBtn.addEventListener("click", () => {
+        inputField.value = "";
+        feedback.innerHTML = "";
+    });
 
     submitBtn.addEventListener("click", () => {
-        const userText = document.getElementById("convo-input").value.trim();
+        const userText = inputField.value.trim();
 
         if (!userText) {
-            feedback.innerHTML = `<span style="color:#f87171;">Please enter a response.</span>`;
+            feedback.innerHTML = `<span style="color:#f87171;">Please enter or click a response first.</span>`;
             return;
         }
 
         const result = scoreConversationResponse(userText, convo.expected);
 
         feedback.innerHTML = `
-            <div class="convo-result">
+            <div class="convo-result" style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; border: 1px solid rgba(148,163,184,0.2);">
+                <span style="color: #38bdf8; font-weight: 600; font-size: 16px;">Analysis Complete</span><br><br>
                 <strong>Your response:</strong> ${userText}<br>
-                <strong>Score:</strong> ${result.score}%<br>
-                <strong>Closest meaning:</strong> ${result.match.en}<br>
-                <strong>Expected Italian:</strong> ${result.match.it}
+                <strong>Match Accuracy Rating:</strong> ${result.score}%<br><br>
+                <strong>Closest English Meaning:</strong> ${result.match.en}<br>
+                <strong>Target Italian Phrase:</strong> <span style="color: #a5f3fc;">${result.match.it}</span>
             </div>
         `;
 
+        // Direct Text-to-Speech audio routing engine
         speakQuiz(result.match.it);
 
         appState.levelStats[appState.currentLevel].conversationCompleted++;
+        saveState();
         updateBadges();
         updateProgressMeters();
     });
@@ -3430,6 +3507,7 @@ function setupConversationEvents(convo) {
         renderConversationTab();
     });
 }
+
 
 
 /* ============================================================
