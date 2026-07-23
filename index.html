@@ -69,7 +69,11 @@
     <div class="student-name-box glass-panel">
         <label class="section-title">Your name for certificates</label>
         <input id="student-name" class="input-field" type="text" placeholder="Enter your name">
-        <button id="save-name-btn" class="pill">Save Name</button>
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+            <button id="save-name-btn" class="pill">Save Name</button>
+            <!-- SYSTEM RESET ACTION BUTTON -->
+            <button id="reset-app-btn" class="pill" onclick="resetAllLevelsAndScores()" style="background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4);">Reset Progress</button>
+        </div>
         <div id="name-status" class="name-status"></div>
     </div>
 
