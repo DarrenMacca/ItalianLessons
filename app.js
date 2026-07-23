@@ -1777,9 +1777,9 @@ function speak(text) {
     window.speechSynthesis.cancel();
 
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "it-IT"; // Shifted from fr-FR to it-IT
+    u.lang = "it-IT"; 
     u.rate = appState.speechRate;
-    u.pitch = 0.95; // Deepened pitch suited for Italian vowel pronunciation
+    u.pitch = 1.0; // ◄ FIX: Change from 0.95 to 1.0 to prevent engine mute bugs
 
     window.speechSynthesis.speak(u);
 }
@@ -1787,14 +1787,14 @@ function speak(text) {
 /* ============================================================
    SPEECH SYNTHESIS — Italian word pronunciation
    ============================================================ */
-function speakItalian(text) { // Renamed from speakFrench to match the platform intent
+function speakItalian(text) { 
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
 
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "it-IT"; // Shifted from fr-FR to it-IT
+    u.lang = "it-IT"; 
     u.rate = appState.speechRate;
-    u.pitch = 0.95;
+    u.pitch = 1.0; // ◄ FIX: Change from 0.95 to 1.0 to ensure cross-browser compatibility
 
     window.speechSynthesis.speak(u);
 }
