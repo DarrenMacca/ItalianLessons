@@ -29,7 +29,7 @@ A1: [
     { english: "We are hungry.", italian: "Abbiamo fame." },
     { english: "The hotel is near.", italian: "L'hotel è vicino." },
     { english: "I want to go home.", italian: "Voglio andare a casa." }
-]
+],
 
 
 A2: [
