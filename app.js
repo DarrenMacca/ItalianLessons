@@ -3626,7 +3626,7 @@ A1: [
         ]
     },
     {
-         {
+         
         prompt_it: "Dove sono i bagni?",
         prompt_en: "Where is the bathroom?",
         expected_responses: [
