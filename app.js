@@ -4630,3 +4630,52 @@ document.addEventListener("DOMContentLoaded", () => {
     updateBadges();
     updateProgressMeters();
 });
+
+/* ============================================================
+   SYSTEM RESET — WIPES LOCAL STORAGE + APP STATE
+   ============================================================ */
+function resetAllLevelsAndScores() {
+    // 1. Confirm with the user first
+    if (!confirm("Are you sure you want to reset everything? This will wipe all progress, scores, and badges permanently!")) {
+        return;
+    }
+
+    // 2. Overwrite local storage key
+    localStorage.removeItem(STORAGE_KEY);
+
+    // 3. Reset the global state object back to defaults
+    appState = {
+        currentLevel: "A1",
+        speechRate: 1.0,
+        studentName: "",
+        badges: [],
+        levelStats: {
+            A1: { listens: 0, flashSeen: 0, quizScore: null, quizCompleted: 0, buildCompleted: 0, sentenceCompleted: 0, conversationCompleted: 0 },
+            A2: { listens: 0, flashSeen: 0, quizScore: null, quizCompleted: 0, buildCompleted: 0, sentenceCompleted: 0, conversationCompleted: 0 },
+            B1: { listens: 0, flashSeen: 0, quizScore: null, quizCompleted: 0, buildCompleted: 0, sentenceCompleted: 0, conversationCompleted: 0 },
+            B2: { listens: 0, flashSeen: 0, quizScore: null, quizCompleted: 0, buildCompleted: 0, sentenceCompleted: 0, conversationCompleted: 0 }
+        }
+    };
+
+    // 4. Force save the empty state configuration
+    saveState();
+
+    // 5. Update UI panels instantly
+    updateBadges();
+    updateProgressMeters();
+
+    // Reset input fields if they exist on the current page view
+    const nameInput = document.getElementById("student-name");
+    const statusText = document.getElementById("name-status");
+    if (nameInput) nameInput.value = "";
+    if (statusText) statusText.textContent = "Progress reset completely.";
+
+    // 6. Force reload the active tab layout to refresh data lookups
+    activateTab("dashboard");
+    
+    // Optional: Refresh level selector highlights back to A1
+    document.querySelectorAll(".level-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.level === "A1");
+    });
+}
+
