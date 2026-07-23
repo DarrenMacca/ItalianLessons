@@ -2347,7 +2347,7 @@ function setupQuizEvents() {
         }
 
         // Audio playback engine trigger call
-        setTimeout(() => speakQuiz(correct), 300);
+        setTimeout(() => speakQuiz(correct), 50);
 
         saveState();
     });
@@ -2505,7 +2505,7 @@ function setupBuildEvents(sentence) {
             appState.levelStats[appState.currentLevel].buildCompleted++;
             updateBadges();
             updateProgressMeters();
-            setTimeout(() => speakQuiz(correct), 300);
+            setTimeout(() => speakQuiz(correct), 50);
         } else {
             const correctTokens = correct.split(" ");
             const userTokens = buildState.answer;
@@ -2524,7 +2524,7 @@ function setupBuildEvents(sentence) {
             });
 
             feedback.innerHTML = html;
-            setTimeout(() => speakQuiz(correct), 300);
+            setTimeout(() => speakQuiz(correct), 50);
         }
 
         saveState();
@@ -3305,7 +3305,7 @@ const DISRUPTOR_WORDS = {
 };
 
 /* ============================================================
-   CONVERSATION TAB — CEFR MULTIPLE-CHOICE RESPONSE ENGINE (ITALIAN)
+   CONVERSATION TAB — ITALIAN-ONLY OPTIONS WITH MEANING FEEDBACK
    ============================================================ */
 
 function generateConversationPrompt(level) {
@@ -3315,10 +3315,10 @@ function generateConversationPrompt(level) {
     // 1. Get a random conversational item
     const item = pool[Math.floor(Math.random() * pool.length)];
     
-    // 2. Select one of the expected responses to be the absolute correct answer
+    // 2. Select one of the expected responses to be the correct answer
     const correctResponse = item.expected_responses[Math.floor(Math.random() * item.expected_responses.length)];
     
-    // 3. Gather all other potential response phrases from the SAME level pool as fake options
+    // 3. Gather all other potential response phrases from the same level pool as fakes
     let allOtherResponses = [];
     pool.forEach(p => {
         p.expected_responses.forEach(resp => {
@@ -3328,7 +3328,7 @@ function generateConversationPrompt(level) {
         });
     });
     
-    // 4. Shuffle fake options and pull 3 distinct distractor responses
+    // 4. Shuffle and pull 3 distinct distractor responses
     allOtherResponses = allOtherResponses.sort(() => Math.random() - 0.5);
     let chosenDistractors = [];
     const seenPhrases = new Set([correctResponse.it]);
@@ -3341,7 +3341,7 @@ function generateConversationPrompt(level) {
         }
     }
     
-    // 5. Construct full choices pack and randomize placement positions
+    // 5. Construct full choices pack and randomize positions
     const finalOptions = [correctResponse, ...chosenDistractors].sort(() => Math.random() - 0.5);
 
     return {
@@ -3375,11 +3375,11 @@ function renderConversationTab() {
                 <strong>Meaning (English):</strong> <em>${convo.prompt_en}</em>
             </div>
 
-            <!-- Fixed 4-Option Multiple Choice Grid Block Layout Anchor -->
+            <!-- Italian-Only Options Layout Grid Box -->
             <div id="convo-options-grid" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
                 ${convo.options.map(opt => `
-                    <button class="pill convo-choice-btn" style="width: 100%; text-align: left; border-radius: 14px; padding: 12px 18px;" data-phrase="${opt.it}" data-meaning="${opt.en}">
-                        <strong>${opt.it}</strong> <span style="opacity: 0.6; font-size: 13px; margin-left: 8px;">(${opt.en})</span>
+                    <button class="pill convo-choice-btn" style="width: 100%; text-align: left; border-radius: 14px; padding: 14px 18px;" data-phrase="${opt.it}" data-meaning="${opt.en}">
+                        <strong>${opt.it}</strong>
                     </button>
                 `).join("")}
             </div>
@@ -3395,10 +3395,6 @@ function renderConversationTab() {
     setupConversationEvents(convo);
 }
 
-/* ============================================================
-   CONVERSATION INTERACTIVE EVENTS WIRE OVERLAYS
-   ============================================================ */
-
 function setupConversationEvents(convo) {
     const grid = document.getElementById("convo-options-grid");
     const nextBtn = document.getElementById("convo-next");
@@ -3410,7 +3406,7 @@ function setupConversationEvents(convo) {
             const userSelection = btn.dataset.phrase;
             const selectionMeaning = btn.dataset.meaning;
             
-            // Disable all options immediately to prevent multiple selections
+            // Disable all options immediately to prevent double tapping
             choiceButtons.forEach(b => {
                 b.disabled = true;
                 if (b.dataset.phrase === convo.correct_phrase) {
@@ -3419,14 +3415,16 @@ function setupConversationEvents(convo) {
                 }
             });
 
-            // Evaluate chosen answer path properties lookups
+            // Evaluate answer and provide instant translation feedback
             if (userSelection === convo.correct_phrase) {
                 btn.style.background = "#4ade80";
                 btn.style.color = "#0f172a";
                 
                 feedback.innerHTML = `
-                    <div class="quiz-correct" style="font-size: 16px; margin-bottom: 4px;">Correct Response! 🎉</div>
-                    <div style="font-size: 14px; opacity: 0.85;"><strong>Meaning:</strong> ${selectionMeaning}</div>
+                    <div class="quiz-correct" style="font-size: 16px; margin-bottom: 4px;">Correct! 🎉</div>
+                    <div style="font-size: 14px; opacity: 0.85;">
+                        <strong>Meaning:</strong> "${selectionMeaning}"
+                    </div>
                 `;
             } else {
                 btn.style.background = "#f87171";
@@ -3434,21 +3432,19 @@ function setupConversationEvents(convo) {
                 btn.style.border = "1px solid #f87171";
                 
                 feedback.innerHTML = `
-                    <div class="quiz-incorrect" style="font-size: 16px; margin-bottom: 4px;">Incorrect Selection</div>
+                    <div class="quiz-incorrect" style="font-size: 16px; margin-bottom: 4px;">Incorrect Choice</div>
                     <div style="font-size: 14px; opacity: 0.85;">
-                        You chose: <em>${userSelection}</em><br>
-                        Correct answer was: <strong style="color: #4ade80;">${convo.correct_phrase}</strong> (${convo.correct_meaning})
+                        You selected a phrase that means: <em style="color: #f87171;">"${selectionMeaning}"</em><br>
+                        The correct response was: <strong>"${convo.correct_phrase}"</strong> (Means: <span style="color: #4ade80;">"${convo.correct_meaning}"</span>)
                     </div>
                 `;
             }
 
-            // Play direct vocal response synthesizer track out to speech engine
+            // Audio plays completely instantly
             speakQuiz(convo.correct_phrase);
 
-            // Reveal navigation handle panel buttons explicitly
             nextBtn.style.display = "block";
 
-            // Save metrics out to app storage arrays variables tracks
             appState.levelStats[appState.currentLevel].conversationCompleted++;
             saveState();
             updateBadges();
@@ -3460,6 +3456,7 @@ function setupConversationEvents(convo) {
         renderConversationTab();
     });
 }
+
 
 /* ============================================================
    RENDER VOCAB + DISRUPTOR PILLS
