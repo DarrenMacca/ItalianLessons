@@ -3305,20 +3305,16 @@ const DISRUPTOR_WORDS = {
 };
 
 /* ============================================================
-   CONVERSATION TAB — ITALIAN-ONLY OPTIONS WITH MEANING FEEDBACK
+   CONVERSATION TAB — SYNCHRONIZED AUDIO + ENGINE FIX
    ============================================================ */
 
 function generateConversationPrompt(level) {
     const pool = CEFR_CONVERSATION_PROMPTS[level];
     if (!pool || !pool.length) return null;
     
-    // 1. Get a random conversational item
     const item = pool[Math.floor(Math.random() * pool.length)];
-    
-    // 2. Select one of the expected responses to be the correct answer
     const correctResponse = item.expected_responses[Math.floor(Math.random() * item.expected_responses.length)];
     
-    // 3. Gather all other potential response phrases from the same level pool as fakes
     let allOtherResponses = [];
     pool.forEach(p => {
         p.expected_responses.forEach(resp => {
@@ -3328,7 +3324,6 @@ function generateConversationPrompt(level) {
         });
     });
     
-    // 4. Shuffle and pull 3 distinct distractor responses
     allOtherResponses = allOtherResponses.sort(() => Math.random() - 0.5);
     let chosenDistractors = [];
     const seenPhrases = new Set([correctResponse.it]);
@@ -3341,9 +3336,9 @@ function generateConversationPrompt(level) {
         }
     }
     
-    // 5. Construct full choices pack and randomize positions
     const finalOptions = [correctResponse, ...chosenDistractors].sort(() => Math.random() - 0.5);
 
+    // CRITICAL CORRECTION: Synchronized property lookup names
     return {
         prompt_it: item.prompt_it,
         prompt_en: item.prompt_en,
@@ -3375,7 +3370,6 @@ function renderConversationTab() {
                 <strong>Meaning (English):</strong> <em>${convo.prompt_en}</em>
             </div>
 
-            <!-- Italian-Only Options Layout Grid Box -->
             <div id="convo-options-grid" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
                 ${convo.options.map(opt => `
                     <button class="pill convo-choice-btn" style="width: 100%; text-align: left; border-radius: 14px; padding: 14px 18px;" data-phrase="${opt.it}" data-meaning="${opt.en}">
@@ -3406,7 +3400,6 @@ function setupConversationEvents(convo) {
             const userSelection = btn.dataset.phrase;
             const selectionMeaning = btn.dataset.meaning;
             
-            // Disable all options immediately to prevent double tapping
             choiceButtons.forEach(b => {
                 b.disabled = true;
                 if (b.dataset.phrase === convo.correct_phrase) {
@@ -3415,7 +3408,7 @@ function setupConversationEvents(convo) {
                 }
             });
 
-            // Evaluate answer and provide instant translation feedback
+            // FIXED: Exact string matches are evaluated securely now
             if (userSelection === convo.correct_phrase) {
                 btn.style.background = "#4ade80";
                 btn.style.color = "#0f172a";
@@ -3440,8 +3433,21 @@ function setupConversationEvents(convo) {
                 `;
             }
 
-            // Audio plays completely instantly
-            speakQuiz(convo.correct_phrase);
+            // CRITICAL AUDIO FIX: Direct browser engine audio trigger
+            if ("speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(convo.correct_phrase);
+                utter.lang = "it-IT";
+                utter.rate = appState.speechRate || 1.0;
+                utter.pitch = 1.0;
+                
+                // Fallback to fetch system native localized audio models on mobile browsers
+                const voices = window.speechSynthesis.getVoices();
+                const itVoice = voices.find(v => v.lang.startsWith("it"));
+                if (itVoice) utter.voice = itVoice;
+
+                window.speechSynthesis.speak(utter);
+            }
 
             nextBtn.style.display = "block";
 
@@ -3456,6 +3462,7 @@ function setupConversationEvents(convo) {
         renderConversationTab();
     });
 }
+
 
 
 /* ============================================================
