@@ -87,11 +87,11 @@ body {
 }
 
 /* ------------------------------------------------------------
-   HERO IMAGE (Mobile Friendly Consolidated — Reduced by 65%)
+   HERO IMAGE (Mobile Friendly Consolidated — Increased by 20%)
 ------------------------------------------------------------ */
 .dashboard-hero-img {
     width: 100%;
-    max-width: 236px; /* Scaled down 65% (35% of original 675px) */
+    max-width: 283px; /* Increased by 20% from 236px */
     height: auto;
     display: block;
     margin: 20px auto 0 auto;
@@ -101,7 +101,7 @@ body {
 
 @media (max-width: 600px) {
     .dashboard-hero-img {
-        max-width: 35%; /* Fixed scale constraint to enforce 65% shrink rule on mobile */
+        max-width: 42%; /* Increased by 20% from 35% */
         margin-top: 12px;
         border-radius: 12px;
         filter: drop-shadow(0 0 12px rgba(0, 255, 255, 0.3));
@@ -111,6 +111,7 @@ body {
         gap: 8px;
     }
 }
+
 
 /* --------------------------------------------------------------
    DASHBOARD LAYOUT
