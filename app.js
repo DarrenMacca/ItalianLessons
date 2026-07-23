@@ -4553,46 +4553,66 @@ function initRateControl() {
 }
 
 /* ============================================================
-   PROGRESS METER CONTROLLER
+   PROGRESS METER CONTROLLER — DYNAMIC STATS ENGINE
    ============================================================ */
 
 function animateNumber(id, target) {
-    let current = 0;
-    const step = target / 40;
+    const el = document.getElementById(id);
+    if (!el) return;
 
+    let current = 0;
+    // Handle instant zero assignment safely
+    if (target <= 0) {
+        el.textContent = "0%";
+        return;
+    }
+    
+    const step = target / 40;
     const interval = setInterval(() => {
         current += step;
         if (current >= target) {
             current = target;
             clearInterval(interval);
         }
-        document.getElementById(id).textContent = Math.round(current) + "%";
+        el.textContent = Math.round(current) + "%";
     }, 20);
 }
 
 function updateProgressMeters() {
+    const s = appState.levelStats[appState.currentLevel];
+    if (!s) return;
 
-    // Bar widths
-    document.getElementById("quiz-progress").style.width = "60%";
-    document.getElementById("build-progress").style.width = "45%";
-    document.getElementById("sentence-progress").style.width = "30%";
+    // Calculate dynamic percentages (capped at 100% max per level exercise task)
+    // Target base counts can be adjusted here (e.g., dividing by 10 means 10 tasks = 100%)
+    const quizPct = Math.min(100, Math.round((s.quizCompleted / 10) * 100)) || 0;
+    const buildPct = Math.min(100, Math.round((s.buildCompleted / 10) * 100)) || 0;
+    const sentencePct = Math.min(100, Math.round((s.sentenceCompleted / 10) * 100)) || 0;
+    const convoPct = Math.min(100, Math.round((s.conversationCompleted / 10) * 100)) || 0;
 
-    document.getElementById("xp-progress").style.width = "70%";
-    document.getElementById("streak-progress").style.width = "40%";
-    document.getElementById("score-progress").style.width = "85%";
-    document.getElementById("review-progress").style.width = "20%";
+    // Calculate overall calculated metrics thresholds
+    const xpPct = Math.min(100, Math.round(((s.listens + s.flashSeen) / 50) * 100)) || 0;
+    const ratingPct = Math.max(0, Math.min(100, s.quizScore || 0)); 
+    const reviewPct = quizPct > 80 ? 0 : Math.max(0, 100 - quizPct); // Higher progress = less review due
 
-    // Animated numbers
-    animateNumber("quiz-number", 60);
-    animateNumber("build-number", 45);
-    animateNumber("sentence-number", 30);
+    // Safe DOM Property Width Modifications
+    if(document.getElementById("quiz-progress")) document.getElementById("quiz-progress").style.width = quizPct + "%";
+    if(document.getElementById("build-progress")) document.getElementById("build-progress").style.width = buildPct + "%";
+    if(document.getElementById("sentence-progress")) document.getElementById("sentence-progress").style.width = sentencePct + "%";
+    if(document.getElementById("xp-progress")) document.getElementById("xp-progress").style.width = xpPct + "%";
+    if(document.getElementById("streak-progress")) document.getElementById("streak-progress").style.width = convoPct + "%"; // Mapping streak view to conversation progress
+    if(document.getElementById("score-progress")) document.getElementById("score-progress").style.width = ratingPct + "%";
+    if(document.getElementById("review-progress")) document.getElementById("review-progress").style.width = reviewPct + "%";
 
-    animateNumber("xp-number", 70);
-    animateNumber("streak-number", 40);
-    animateNumber("score-number", 85);
-    animateNumber("review-number", 20);
+    // Trigger Number Count Roll Animations
+    animateNumber("quiz-number", quizPct);
+    animateNumber("build-number", buildPct);
+    animateNumber("sentence-number", sentencePct);
+    animateNumber("xp-number", xpPct);
+    animateNumber("streak-number", convoPct); 
+    animateNumber("score-number", ratingPct);
+    animateNumber("review-number", reviewPct);
 
-    // Pulse animations
+    // Pulse animations layout flashes
     pulseTile("quiz-tile");
     pulseTile("build-tile");
     pulseTile("sentence-tile");
@@ -4601,6 +4621,7 @@ function updateProgressMeters() {
     pulseTile("score-tile");
     pulseTile("review-tile");
 }
+
 /* ============================================================
    TILE PULSE ANIMATION
    ============================================================ */
@@ -4635,15 +4656,12 @@ document.addEventListener("DOMContentLoaded", () => {
    SYSTEM RESET — WIPES LOCAL STORAGE + APP STATE
    ============================================================ */
 function resetAllLevelsAndScores() {
-    // 1. Confirm with the user first
     if (!confirm("Are you sure you want to reset everything? This will wipe all progress, scores, and badges permanently!")) {
         return;
     }
 
-    // 2. Overwrite local storage key
     localStorage.removeItem(STORAGE_KEY);
 
-    // 3. Reset the global state object back to defaults
     appState = {
         currentLevel: "A1",
         speechRate: 1.0,
@@ -4657,25 +4675,26 @@ function resetAllLevelsAndScores() {
         }
     };
 
-    // 4. Force save the empty state configuration
     saveState();
 
-    // 5. Update UI panels instantly
+    // Force progress bar widths directly to zero to snap layout animations cleanly
+    const tracks = ["quiz-progress", "build-progress", "sentence-progress", "xp-progress", "streak-progress", "score-progress", "review-progress"];
+    tracks.forEach(track => {
+        const bar = document.getElementById(track);
+        if (bar) bar.style.width = "0%";
+    });
+
     updateBadges();
     updateProgressMeters();
 
-    // Reset input fields if they exist on the current page view
     const nameInput = document.getElementById("student-name");
     const statusText = document.getElementById("name-status");
     if (nameInput) nameInput.value = "";
-    if (statusText) statusText.textContent = "Progress reset completely.";
+    if (statusText) statusText.textContent = "Progress reset completely to 0.";
 
-    // 6. Force reload the active tab layout to refresh data lookups
     activateTab("dashboard");
     
-    // Optional: Refresh level selector highlights back to A1
     document.querySelectorAll(".level-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.level === "A1");
     });
 }
-
